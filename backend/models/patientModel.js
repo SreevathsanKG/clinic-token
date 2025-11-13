@@ -9,7 +9,7 @@ const Patient = sequelize.define('Patient', {
   },
   token_number: {
     type: DataTypes.INTEGER,
-    unique: true,
+    // unique: true,
     allowNull: false,
   },
   name: {

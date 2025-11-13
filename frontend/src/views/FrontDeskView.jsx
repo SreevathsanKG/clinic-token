@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import './FrontDeskView.css';
+import { socket } from '../socket';
 
-// Base URL for the backend API
-const API_BASE_URL = 'http://localhost:3001/api/patients';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const FrontDeskView = () => {
   const [patients, setPatients] = useState([]);
-  const [formData, setFormData] = useState({ name: '', age: '', purpose: '' });
+  const [newPatient, setNewPatient] = useState({ name: '', age: '', purpose: '' });
   const [loading, setLoading] = useState(false);
 
-  // Function to fetch the current patient list
+  // Fetch patients
   const fetchPatients = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get(API_BASE_URL);
+      const response = await axios.get(`${API_BASE_URL}/patients/getAll/Today`);
       setPatients(response.data);
     } catch (error) {
       console.error('Error fetching patients:', error);
@@ -24,115 +25,130 @@ const FrontDeskView = () => {
 
   useEffect(() => {
     fetchPatients();
-  }, [fetchPatients]); // Fetch data on component mount
+  }, [fetchPatients]);
 
-  // Handle form input changes
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  // Real-time updates
+  useEffect(() => {
+    socket.on('patientAdded', (newPatient) => {
+      setPatients((prev) => [newPatient, ...prev]);
+    });
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.name || !formData.purpose) {
-      alert('Patient Name and Purpose are required.');
-      return;
-    }
+    socket.on('patientUpdated', (updatedPatient) => {
+      setPatients((prev) =>
+        prev.map((p) => (p._id === updatedPatient._id ? updatedPatient : p))
+      );
+    });
+
+    return () => {
+      socket.off('patientAdded');
+      socket.off('patientUpdated');
+    };
+  }, []);
+
+  // Add patient
+  const handleAddPatient = async () => {
+    if (!newPatient.name || !newPatient.age || !newPatient.purpose) return;
 
     try {
-      // POST request to create a new patient/token
-      await axios.post(API_BASE_URL, formData);
-      
-      // Clear form and refresh the patient list
-      setFormData({ name: '', age: '', purpose: '' });
-      fetchPatients(); 
-    } catch (error) {
-      console.error('Error adding patient:', error);
-      alert('Failed to add patient.');
+      await axios.post(`${API_BASE_URL}/patients/add`, {
+        ...newPatient,
+        age: parseInt(newPatient.age),
+      });
+      setNewPatient({ name: '', age: '', purpose: '' });
+    } catch (err) {
+      console.error('Error adding patient:', err);
     }
+  };
+
+  const handleChange = (e) => {
+    setNewPatient({ ...newPatient, [e.target.name]: e.target.value });
+  };
+
+  const handleRefreshQueue = () => {
+    fetchPatients();
   };
 
   return (
-    <div className="view-container">
-      <h2>Front Desk | Patient Registration</h2>
-      
-      {/* Patient Registration Form */}
-      <form onSubmit={handleSubmit} style={{ marginBottom: '30px', padding: '15px', border: '1px solid #ccc', borderRadius: '5px' }}>
-        <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <label>
-            Name:
-            <input 
-              type="text" 
-              name="name" 
-              value={formData.name} 
-              onChange={handleChange} 
-              required
-              style={{ padding: '8px', marginLeft: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+    <div className="frontdesk-container">
+      <div className="queue-section">
+        <h2>Front Desk | Patient Queue</h2>
+
+        <div className="add-patient-form">
+          <h3>Add New Patient</h3>
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Patient Name"
+              name="name"
+              value={newPatient.name}
+              onChange={handleChange}
             />
-          </label>
-          <label>
-            Age:
-            <input 
-              type="number" 
-              name="age" 
-              value={formData.age} 
-              onChange={handleChange} 
-              style={{ padding: '8px', marginLeft: '5px', borderRadius: '4px', border: '1px solid #ccc', width: '80px' }}
+          </div>
+          <div className="form-group">
+            <input
+              type="number"
+              placeholder="Age"
+              name="age"
+              value={newPatient.age}
+              onChange={handleChange}
             />
-          </label>
-          <label>
-            Purpose:
-            <input 
-              type="text" 
-              name="purpose" 
-              value={formData.purpose} 
-              onChange={handleChange} 
-              required
-              style={{ padding: '8px', marginLeft: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+          </div>
+          <div className="form-group">
+            <input
+              type="text"
+              placeholder="Purpose of Visit"
+              name="purpose"
+              value={newPatient.purpose}
+              onChange={handleChange}
             />
-          </label>
-          <button type="submit" style={{ padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
-            Generate Token
+          </div>
+          <button className="btn-add" onClick={handleAddPatient}>
+            Add Patient
           </button>
         </div>
-      </form>
 
-      {/* Today's Patient Queue Table */}
-      <h3>Today's Patient Queue</h3>
-      <button onClick={fetchPatients} disabled={loading} style={{ padding: '8px', marginBottom: '10px' }}>
-        {loading ? 'Refreshing...' : 'Manual Refresh'}
-      </button>
+        <div className="patients-queue">
+          <div className="queue-header">
+            <h3>Patients in Queue / Consultation ({patients.length} Total)</h3>
+            <button className="btn-refresh" onClick={handleRefreshQueue}>
+              {loading ? 'Refreshing...' : 'Manual Refresh Queue'}
+            </button>
+          </div>
 
-      <table className="patient-table">
-        <thead>
-          <tr>
-            <th>Token No.</th>
-            <th>Name</th>
-            <th>Age</th>
-            <th>Purpose</th>
-            <th>Status</th>
-            <th>Check-in Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {patients.length > 0 ? (
-            patients.map((patient) => (
-              <tr key={patient.id}>
-                <td>**{patient.token_number}**</td>
-                <td>{patient.name}</td>
-                <td>{patient.age || 'N/A'}</td>
-                <td>{patient.purpose}</td>
-                <td className={`status-${patient.status.replace(/\s/g, '')}`}>{patient.status}</td>
-                <td>{new Date(patient.createdAt).toLocaleTimeString()}</td>
+          <table className="patients-table">
+            <thead>
+              <tr>
+                <th>Token No.</th>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Purpose</th>
+                <th>Status</th>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6" style={{ textAlign: 'center' }}>No patients checked in yet.</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {patients.length > 0 ? (
+                patients.map((patient, index) => (
+                  <tr key={patient._id || index}>
+                    <td>{patient.tokenNo || index + 1}</td>
+                    <td>{patient.name}</td>
+                    <td>{patient.age}</td>
+                    <td>{patient.purpose}</td>
+                    <td>
+                      <span className={`status-badge ${patient.status.toLowerCase()}`}>
+                        {patient.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr className="empty-row">
+                  <td colSpan="5">No patients currently in queue.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

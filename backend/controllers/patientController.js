@@ -1,5 +1,7 @@
+
 const Patient = require('../models/patientModel');
 const { Op } = require('sequelize'); // Needed for date filtering
+const { getIo } = require('../config/socketConfig');                        
 
 // Helper function to get the start of the current day (midnight)
 const getTodayStart = () => {
@@ -42,12 +44,20 @@ exports.addPatient = async (req, res) => {
             status: 'Waiting' 
         });
 
+        // Emit a real-time event after successfully adding a patient
+        const io = getIo();
+        // Emit a 'patientAdded' event to all connected clients
+        io.emit('patientAdded', newPatient);
+
         res.status(201).json(newPatient);
 
     } catch (error) {
-        console.error('Error adding patient:', error);
-        // Respond with a 500 and the error message for debugging
-        res.status(500).json({ message: 'Internal Server Error', error: error.message }); 
+        console.error("Error adding patient (full):", error);
+  res.status(500).json({
+    message: "Internal Server Error",
+    error: error.message,
+    stack: error.stack,
+  });
     }
 };
 
@@ -97,6 +107,12 @@ exports.updatePatientStatus = async (req, res) => {
 
         // Fetch and return the updated record
         const updatedPatient = await Patient.findByPk(id);
+
+        // Emit a real-time event after successfully updating the status
+        const io = getIo();
+        // Emit a 'patientUpdated' event to all connected clients
+        io.emit('patientUpdated', updatedPatient);
+
         res.status(200).json(updatedPatient);
 
     } catch (error) {

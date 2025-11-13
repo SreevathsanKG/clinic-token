@@ -1,36 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import './App.css';
 import FrontDeskView from './views/FrontDeskView';
 import DoctorView from './views/DoctorView';
-import './App.css'; // Import the CSS file
+import { socket } from './socket'; // ✅ use single shared socket
 
-const App = () => {
-  const [view, setView] = useState('front-desk'); // State to switch between views
+function App() {
+  const [currentView, setCurrentView] = useState('frontDesk');
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    socket.on('connect', () => {
+      setIsConnected(true);
+      console.log('Socket connected');
+    });
+
+    socket.on('disconnect', () => {
+      setIsConnected(false);
+      console.log('Socket disconnected');
+    });
+
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+    };
+  }, []);
 
   return (
     <div className="app-container">
-      <header className="header">
+      <header className="app-header">
         <h1>Clinic Pulse Token System</h1>
-        <nav className="nav">
-          <button 
-            className={`nav-button ${view === 'front-desk' ? 'active' : ''}`}
-            onClick={() => setView('front-desk')}
+        <div className="view-buttons">
+          <button
+            className={`view-btn ${currentView === 'frontDesk' ? 'active' : ''}`}
+            onClick={() => setCurrentView('frontDesk')}
           >
             Front Desk
           </button>
           <button
-            className={`nav-button ${view === 'doctor' ? 'active' : ''}`}
-            onClick={() => setView('doctor')}
+            className={`view-btn ${currentView === 'doctor' ? 'active' : ''}`}
+            onClick={() => setCurrentView('doctor')}
           >
             Doctor View
           </button>
-        </nav>
+        </div>
       </header>
 
       <main className="main-content">
-        {view === 'front-desk' ? <FrontDeskView /> : <DoctorView />}
+        {currentView === 'frontDesk' ? <FrontDeskView /> : <DoctorView />}
       </main>
+
+      <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+        {isConnected ? '● Connected' : '● Disconnected'}
+      </div>
     </div>
   );
-};
+}
 
 export default App;
