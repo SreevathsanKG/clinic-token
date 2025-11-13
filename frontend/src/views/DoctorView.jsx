@@ -41,13 +41,13 @@ const DoctorView = () => {
 
     socket.on('patientUpdated', (updatedPatient) => {
       setPatients((prev) =>
-        prev.map((p) => (p._id === updatedPatient._id ? updatedPatient : p))
+        prev.map((p) => (p.id === updatedPatient.id ? updatedPatient : p))
       );
 
       if (updatedPatient.status === 'In Consultation') {
         setCurrentPatient(updatedPatient);
       } else if (
-        updatedPatient._id === currentPatient?._id &&
+        updatedPatient.id === currentPatient?.id &&
         updatedPatient.status === 'Done'
       ) {
         setCurrentPatient(null);
@@ -64,8 +64,7 @@ const DoctorView = () => {
   const handleCallPatient = async (patient) => {
     try {
       const updated = { ...patient, status: 'In Consultation' };
-      const patientId = patient._id || patient.id; // ✅ FIX
-      await axios.put(`${API_BASE_URL}/patients/put/status/${patientId}`, updated);
+      await axios.put(`${API_BASE_URL}/patients/put/status/${patient.id}`, updated);
       setCurrentPatient(updated);
       fetchPatients();
     } catch (err) {
@@ -78,8 +77,7 @@ const DoctorView = () => {
     if (!currentPatient) return;
     try {
       const updated = { ...currentPatient, status: 'Done' };
-      const patientId = currentPatient._id || currentPatient.id; // ✅ FIX
-      await axios.put(`${API_BASE_URL}/patients/put/status/${patientId}`, updated);
+      await axios.put(`${API_BASE_URL}/patients/put/status/${currentPatient.id}`, updated);
       setCurrentPatient(null);
       fetchPatients();
     } catch (err) {
@@ -102,7 +100,7 @@ const DoctorView = () => {
           {currentPatient ? (
             <div className="patient-card">
               <div className="patient-info">
-                <p><span>Token No.:</span> {currentPatient.tokenNo || '—'}</p>
+                <p><span>Token No.:</span> {currentPatient.token_number}</p>
                 <p><span>Name:</span> {currentPatient.name}</p>
                 <p><span>Age:</span> {currentPatient.age}</p>
                 <p><span>Purpose:</span> {currentPatient.purpose}</p>
@@ -139,12 +137,12 @@ const DoctorView = () => {
               {patients.length > 0 ? (
                 patients.map((patient, index) => (
                   <tr
-                    key={patient._id || index}
+                    key={patient.id || index}
                     className={
                       patient.status === 'In Consultation' ? 'highlight-row' : ''
                     }
                   >
-                    <td>{patient.tokenNo || index + 1}</td>
+                    <td>{patient.token_number}</td>
                     <td>{patient.name}</td>
                     <td>{patient.age}</td>
                     <td>{patient.purpose}</td>

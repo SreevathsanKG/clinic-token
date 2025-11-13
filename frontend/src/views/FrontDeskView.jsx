@@ -35,7 +35,7 @@ const FrontDeskView = () => {
 
     socket.on('patientUpdated', (updatedPatient) => {
       setPatients((prev) =>
-        prev.map((p) => (p._id === updatedPatient._id ? updatedPatient : p))
+        prev.map((p) => (p.id === updatedPatient.id ? updatedPatient : p))
       );
     });
 
@@ -128,8 +128,8 @@ const FrontDeskView = () => {
             <tbody>
               {patients.length > 0 ? (
                 patients.map((patient, index) => (
-                  <tr key={patient._id || index}>
-                    <td>{patient.tokenNo || index + 1}</td>
+                  <tr key={patient.id || index}>
+                    <td>{patient.token_number}</td>
                     <td>{patient.name}</td>
                     <td>{patient.age}</td>
                     <td>{patient.purpose}</td>

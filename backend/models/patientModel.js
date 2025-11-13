@@ -9,7 +9,6 @@ const Patient = sequelize.define('Patient', {
   },
   token_number: {
     type: DataTypes.INTEGER,
-    // unique: true,
     allowNull: false,
   },
   name: {
@@ -21,6 +20,7 @@ const Patient = sequelize.define('Patient', {
   },
   purpose: {
     type: DataTypes.STRING(255),
+    allowNull: false,
   },
   status: {
     type: DataTypes.ENUM('Waiting', 'In Consultation', 'Done'),
